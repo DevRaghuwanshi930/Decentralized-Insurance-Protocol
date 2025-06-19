@@ -1,4 +1,4 @@
-![image](https://github.com/user-attachments/assets/6246f83b-6eb2-4c82-855c-95576341d99d)# Decentralized Insurance Protocol
+
 
 ## Project Description
 
