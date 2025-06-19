@@ -1,135 +1,172 @@
+// SPDX-License-Identifier: MIT
+pragma solidity ^0.8.19;
 
-
-## Project Description
-
-The Decentralized Insurance Protocol is a blockchain-based smart contract system that enables users to purchase insurance policies and submit claims in a trustless, transparent manner. Built on Ethereum using Solidity, this protocol eliminates traditional insurance intermediaries by automating policy management and claim processing through smart contracts.
-
-The system allows users to purchase various types of insurance policies by paying premiums in ETH, submit claims when incidents occur, and receive automated payouts upon claim approval. All transactions and policy data are stored immutably on the blockchain, ensuring transparency and reducing the potential for fraud.
-
-## Project Vision
-
-Our vision is to democratize insurance by creating a decentralized, transparent, and accessible insurance ecosystem that:
-
-- **Eliminates Intermediaries**: Remove traditional insurance companies and their associated overhead costs
-- **Ensures Transparency**: All policies, claims, and payouts are recorded on the blockchain for public verification
-- **Reduces Fraud**: Immutable blockchain records and smart contract automation minimize fraudulent activities
-- **Global Accessibility**: Provide insurance services to anyone with an internet connection and cryptocurrency wallet
-- **Automated Processes**: Streamline policy management and claim processing through smart contract automation
-- **Community Governance**: Eventually transition to a DAO model where token holders govern protocol decisions
-
-## Key Features
-
-### 🏛️ **Policy Management**
-- Purchase insurance policies with customizable coverage amounts and durations
-- Support for multiple policy types (health, auto, property, etc.)
-- Automatic policy activation and expiration tracking
-- User-friendly policy lookup and management interface
-
-### 💰 **Premium Pool System**
-- Collective premium pool that funds approved claims
-- Transparent pool balance tracking
-- Risk-based premium calculation (coverage limited to 10x premium amount)
-- Automated fund management and distribution
-
-### 📋 **Claims Processing**
-- Simple claim submission process with detailed descriptions
-- Policy validation before claim acceptance
-- Admin-controlled claim approval system
-- Automatic payout distribution upon approval
-- Complete claim history and status tracking
-
-### 🔐 **Security Features**
-- Owner-only administrative functions
-- Policy validation modifiers
-- Premium and coverage amount restrictions
-- Emergency withdrawal functionality
-- Comprehensive access control mechanisms
-
-### 📊 **Transparency & Tracking**
-- Real-time contract balance monitoring
-- Complete policy and claim history
-- Event logging for all major actions
-- User portfolio tracking across multiple policies
-
-## Future Scope
-
-### 🤖 **Automated Claim Assessment**
-- Integration with oracles for automatic claim verification
-- IoT device integration for real-time incident reporting
-- AI-powered risk assessment and fraud detection
-- Parametric insurance for weather, flight delays, etc.
-
-### 🗳️ **Decentralized Governance**
-- Transition to DAO governance model
-- Token-based voting on protocol changes
-- Community-driven claim dispute resolution
-- Decentralized risk assessment committees
-
-### 📈 **Advanced Financial Features**
-- Multi-token premium payments (USDC, DAI, etc.)
-- Yield farming for premium pool optimization
-- Reinsurance protocol integration
-- Dynamic premium pricing based on real-time data
-
-### 🌐 **Ecosystem Expansion**
-- Cross-chain compatibility (Polygon, BSC, Arbitrum)
-- Integration with DeFi protocols for enhanced yield
-- Mobile application for easy policy management
-- Insurance marketplace with multiple providers
-
-### 🔬 **Advanced Risk Management**
-- Machine learning models for risk assessment
-- Historical data analysis for premium optimization
-- Catastrophic event modeling and pool management
-- Actuarial science integration for better pricing
-
-### 🤝 **Partnership Integration**
-- Integration with existing DeFi protocols
-- Partnerships with traditional insurance companies
-- Corporate insurance solutions
-- Integration with identity verification systems
-
----
-
-## Getting Started
-
-### Prerequisites
-- Node.js and npm installed
-- Hardhat or Truffle framework
-- MetaMask or compatible Web3 wallet
-- Test ETH for deployment and testing
-
-### Installation
-```bash
-# Clone the repository
-git clone <repository-url>
-cd decentralized-insurance-protocol
-
-# Install dependencies
-npm install
-
-# Compile contracts
-npx hardhat compile
-
-# Run tests
-npx hardhat test
-
-# Deploy to testnet
-npx hardhat run scripts/deploy.js --network goerli
-```
-
-### Usage
-1. Deploy the contract to your preferred network
-2. Users can purchase policies by calling `purchasePolicy()` with ETH
-3. Policyholders can submit claims using `submitClaim()`
-4. Contract owner can approve/reject claims via `processClaim()`
-5. Monitor all activities through emitted events
-
----
-
-**Note**: This is a prototype implementation. Conduct thorough security audits before deploying to mainnet with real funds.
-
-contract Address: 0x7187ec839f6b9001a9b4c8a179edf2c7360fded
-
-![image](https://github.com/user-attachments/assets/306a5b46-e712-440e-8cc1-5d1379fb68b2)
-
+contract Project {
+    address public owner;
+    uint256 public totalPremiumPool;
+    uint256 public claimCounter;
+    
+    struct Policy {
+        uint256 policyId;
+        address policyholder;
+        uint256 premiumAmount;
+        uint256 coverageAmount;
+        uint256 startTime;
+        uint256 duration;
+        bool isActive;
+        string policyType;
+    }
+    
+    struct Claim {
+        uint256 claimId;
+        uint256 policyId;
+        address claimant;
+        uint256 claimAmount;
+        string description;
+        bool isApproved;
+        bool isPaid;
+        uint256 claimTime;
+    }
+    
+    mapping(uint256 => Policy) public policies;
+    mapping(uint256 => Claim) public claims;
+    mapping(address => uint256[]) public userPolicies;
+    
+    uint256 public nextPolicyId = 1;
+    uint256 public nextClaimId = 1;
+    
+    event PolicyCreated(uint256 indexed policyId, address indexed policyholder, uint256 premiumAmount, uint256 coverageAmount);
+    event ClaimSubmitted(uint256 indexed claimId, uint256 indexed policyId, address indexed claimant, uint256 claimAmount);
+    event ClaimProcessed(uint256 indexed claimId, bool approved, uint256 payoutAmount);
+    
+    modifier onlyOwner() {
+        require(msg.sender == owner, "Only owner can perform this action");
+        _;
+    }
+    
+    modifier validPolicy(uint256 _policyId) {
+        require(_policyId > 0 && _policyId < nextPolicyId, "Invalid policy ID");
+        require(policies[_policyId].isActive, "Policy is not active");
+        _;
+    }
+    
+    constructor() {
+        owner = msg.sender;
+    }
+    
+    // Core Function 1: Purchase Insurance Policy
+    function purchasePolicy(
+        uint256 _coverageAmount,
+        uint256 _duration,
+        string memory _policyType
+    ) external payable returns (uint256) {
+        require(msg.value > 0, "Premium amount must be greater than 0");
+        require(_coverageAmount > 0, "Coverage amount must be greater than 0");
+        require(_duration > 0, "Duration must be greater than 0");
+        require(_coverageAmount <= msg.value * 10, "Coverage amount too high for premium");
+        
+        uint256 policyId = nextPolicyId++;
+        
+        policies[policyId] = Policy({
+            policyId: policyId,
+            policyholder: msg.sender,
+            premiumAmount: msg.value,
+            coverageAmount: _coverageAmount,
+            startTime: block.timestamp,
+            duration: _duration,
+            isActive: true,
+            policyType: _policyType
+        });
+        
+        userPolicies[msg.sender].push(policyId);
+        totalPremiumPool += msg.value;
+        
+        emit PolicyCreated(policyId, msg.sender, msg.value, _coverageAmount);
+        
+        return policyId;
+    }
+    
+    // Core Function 2: Submit Insurance Claim
+    function submitClaim(
+        uint256 _policyId,
+        uint256 _claimAmount,
+        string memory _description
+    ) external validPolicy(_policyId) returns (uint256) {
+        Policy storage policy = policies[_policyId];
+        require(msg.sender == policy.policyholder, "Only policyholder can submit claim");
+        require(block.timestamp <= policy.startTime + policy.duration, "Policy has expired");
+        require(_claimAmount <= policy.coverageAmount, "Claim amount exceeds coverage");
+        require(_claimAmount > 0, "Claim amount must be greater than 0");
+        
+        uint256 claimId = nextClaimId++;
+        
+        claims[claimId] = Claim({
+            claimId: claimId,
+            policyId: _policyId,
+            claimant: msg.sender,
+            claimAmount: _claimAmount,
+            description: _description,
+            isApproved: false,
+            isPaid: false,
+            claimTime: block.timestamp
+        });
+        
+        claimCounter++;
+        
+        emit ClaimSubmitted(claimId, _policyId, msg.sender, _claimAmount);
+        
+        return claimId;
+    }
+    
+    // Core Function 3: Process Claim (Admin Function)
+    function processClaim(uint256 _claimId, bool _approve) external onlyOwner {
+        require(_claimId > 0 && _claimId < nextClaimId, "Invalid claim ID");
+        
+        Claim storage claim = claims[_claimId];
+        require(!claim.isPaid, "Claim already processed");
+        
+        claim.isApproved = _approve;
+        
+        if (_approve) {
+            require(address(this).balance >= claim.claimAmount, "Insufficient contract balance");
+            
+            claim.isPaid = true;
+            totalPremiumPool -= claim.claimAmount;
+            
+            payable(claim.claimant).transfer(claim.claimAmount);
+            
+            emit ClaimProcessed(_claimId, true, claim.claimAmount);
+        } else {
+            emit ClaimProcessed(_claimId, false, 0);
+        }
+    }
+    
+    // Utility Functions
+    function getPolicyDetails(uint256 _policyId) external view returns (Policy memory) {
+        return policies[_policyId];
+    }
+    
+    function getClaimDetails(uint256 _claimId) external view returns (Claim memory) {
+        return claims[_claimId];
+    }
+    
+    function getUserPolicies(address _user) external view returns (uint256[] memory) {
+        return userPolicies[_user];
+    }
+    
+    function getContractBalance() external view returns (uint256) {
+        return address(this).balance;
+    }
+    
+    function isPolicyActive(uint256 _policyId) external view returns (bool) {
+        if (_policyId == 0 || _policyId >= nextPolicyId) return false;
+        
+        Policy memory policy = policies[_policyId];
+        return policy.isActive && (block.timestamp <= policy.startTime + policy.duration);
+    }
+    
+    // Emergency function to withdraw funds (only owner)
+    function emergencyWithdraw() external onlyOwner {
+        payable(owner).transfer(address(this).balance);
+    }
+}
